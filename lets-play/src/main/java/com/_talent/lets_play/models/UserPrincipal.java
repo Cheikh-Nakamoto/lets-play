@@ -10,21 +10,27 @@ import java.util.Collections;
 
 @RequiredArgsConstructor
 public class UserPrincipal implements UserDetails {
+
     private final User user;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return user.getRole().isEmpty() ?Collections.singleton(new SimpleGrantedAuthority("USER")) :Collections.singleton(new SimpleGrantedAuthority("ADMIN")) ;
+        return Collections.singleton(new SimpleGrantedAuthority("USER"));
     }
+
     public String getId() {
         return user.getId();
     }
+
     public String getEmail() {
         return user.getEmail();
     }
+
     @Override
     public String getPassword() {
         return user.getPassword();
     }
+
 
     @Override
     public String getUsername() {

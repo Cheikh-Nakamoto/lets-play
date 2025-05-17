@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface IProduct {
     Product addProduct(Product product);
-    void removeProduct(String productId,String userid);
+    void removeProduct(String productId,String userid,String role);
     Product updateProduct(Product product,String productId);
     Optional<Product> getProductbyID(String productId);
     List<Product> getAllProducts();

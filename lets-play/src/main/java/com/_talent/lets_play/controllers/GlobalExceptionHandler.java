@@ -105,12 +105,12 @@ public class GlobalExceptionHandler {
         String path = ((ServletWebRequest) request).getRequest().getRequestURI();
         ErrorResponse errorResponse = new ErrorResponse.Builder()
                 .withCode("INTERNAL_SERVER_ERROR")
-                .withMessage("Une erreur interne s'est produite: " + ex.getMessage())
-                .withStatus(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .withMessage("Une erreur interne s'est produite lors de l'authentification par spring: " + ex.getMessage())
+                .withStatus(HttpStatus.BAD_REQUEST.value())
                 .withTimestamp(LocalDateTime.now())
                 .withPath(path)
                 .build();
 
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 }

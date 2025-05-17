@@ -45,7 +45,7 @@ public class ProductService implements IProduct {
             @CacheEvict(value = "productById", key = "#productId"),
             @CacheEvict(value = "productsByUser", key = "#userid")
     })
-    public void removeProduct(String productId, String userid) {
+    public void removeProduct(String productId, String userid,String role) {
         if (productId == null || productId.trim().isEmpty()) {
             throw new BadRequestException("L'ID du produit est requis");
         }
@@ -54,7 +54,7 @@ public class ProductService implements IProduct {
         Product product = productOpt.orElseThrow(() ->
                 new ResourceNotFoundException("Produit non trouvé avec l'ID: " + productId));
 
-        if (!product.getUserId().equals(userid)) {
+        if (!product.getUserId().equals(userid) && !role.equals("ADMIN")) {
             log.warn("Tentative de suppression non autorisée du produit {} par l'utilisateur {}", productId, userid);
             throw new UnauthorizedAccessException("Vous n'êtes pas autorisé à supprimer ce produit");
         }

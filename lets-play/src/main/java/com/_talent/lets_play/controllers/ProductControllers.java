@@ -1,6 +1,7 @@
 package com._talent.lets_play.controllers;
 import com._talent.lets_play.exception.BadRequestException;
 import com._talent.lets_play.exception.ResourceNotFoundException;
+import com._talent.lets_play.exception.UnauthorizedAccessException;
 import com._talent.lets_play.models.Product;
 import com._talent.lets_play.models.UserPrincipal;
 import com._talent.lets_play.services.impl.ProductService;
@@ -51,10 +52,13 @@ public class ProductControllers {
         return ResponseEntity.ok(productService.getProductsbyUserid(userId));
     }
 
-    @PostMapping("/addProduct")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<Product> addProduct(@Valid @RequestBody Product product) {
+    @PostMapping("/")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<Product> addProduct(@Valid @RequestBody Product product){
         UserPrincipal user = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (user != null && user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ADMIN"))) {
+            product.setUserId("ADMIN");
+        }
         product.setUserId(user.getId());
         log.info("Ajout d'un nouveau produit par l'utilisateur: {}", user.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.addProduct(product));
@@ -62,11 +66,12 @@ public class ProductControllers {
 
     @DeleteMapping("/{productId}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<Void> removeProduct(@PathVariable String productId) {
+    public ResponseEntity<String> removeProduct(@PathVariable String productId) {
         UserPrincipal user = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        log.info("Tentative de suppression du produit: {} par l'utilisateur: {}", productId, user.getId());
-        productService.removeProduct(productId, user.getId());
-        return ResponseEntity.noContent().build();
+        String role = user.getAuthorities().stream().findFirst().orElseThrow().getAuthority();
+        log.info("Tentative de suppression du produit: {} par l'utilisateur: {}", productId, user.getAuthorities());
+        productService.removeProduct(productId, user.getId(),role);
+        return ResponseEntity.status(HttpStatus.OK).body("Product delete successfuly !");
     }
 
     @PutMapping("/{productId}")

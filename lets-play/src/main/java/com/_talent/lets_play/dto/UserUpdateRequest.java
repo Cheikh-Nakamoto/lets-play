@@ -10,14 +10,4 @@ import lombok.Setter;
 public class UserUpdateRequest {
     private String name;
     private String password;
-
-    // Getters and setters
-    public String getName() {
-        return name;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
 }
