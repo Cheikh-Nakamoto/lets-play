@@ -1,8 +1,11 @@
 package com._talent.lets_play.controllers;
 
 import com._talent.lets_play.config.JwtUtils;
+import com._talent.lets_play.dto.AdminAuthRequest;
+import com._talent.lets_play.dto.UserUpdateRequest;
 import com._talent.lets_play.models.*;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -15,17 +18,24 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import com._talent.lets_play.services.impl.UserService;
 import lombok.RequiredArgsConstructor;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Controller handling authentication and user management operations.
+ */
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class UserControllers {
 
     private final UserService userService;
@@ -33,65 +43,316 @@ public class UserControllers {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
 
-
+    /**
+     * Authenticates a user and returns a JWT token.
+     *
+     * @param loginRequest The login credentials
+     * @return ResponseEntity with JWT token or error message
+     */
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        log.info("Authentication attempt for user: {}", loginRequest.getUsername());
+
         try {
-            String pwd = loginRequest.getPassword();
-            // 1. Création d'un objet Authentication avec les identifiants bruts
+            // Validate inputs
+            if (loginRequest.getUsername() == null || loginRequest.getUsername().trim().isEmpty() ||
+                    loginRequest.getPassword() == null || loginRequest.getPassword().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Username and password are required");
+            }
+
+            // Authenticate the user
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             loginRequest.getUsername(),
-                            loginRequest.getPassword()  // Le mot de passe non hashé
+                            loginRequest.getPassword()
                     )
             );
+
+            // Set authentication in security context
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            // Cette ligne lancera une UsernameNotFoundException si l'utilisateur n'existe pas
-            UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
-            System.out.println("usert pwd: " + user.getPassword());
-            String jwtToken = jwtUtils.generateJwtToken(user);
-            // Si on arrive ici, c'est que l'utilisateur existe
+
+            // Get user details
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+            // Generate JWT token
+            String jwtToken = jwtUtils.generateJwtToken(userPrincipal);
+
+            log.info("User authenticated successfully: {}", userPrincipal.getUsername());
+
+            // Return successful response with token and user details
             return ResponseEntity.ok(new JwtResponse(
                     jwtToken,
-                    user.getId(),
-                    user.getUsername(),
-                    user.getEmail(),
-                    user.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList())
+                    userPrincipal.getId(),
+                    userPrincipal.getUsername(),
+                    userPrincipal.getEmail(),
+                    userPrincipal.getAuthorities().stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .collect(Collectors.toList())
             ));
+
         } catch (UsernameNotFoundException ex) {
-            // On capture l'exception si l'utilisateur n'est pas trouvé
-            return ResponseEntity.badRequest().body("Aucune correspondance !");
-        } catch (BadCredentialsException e) {
+            log.warn("Login failed - user not found: {}", loginRequest.getUsername());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Identifiants incorrects");
+                    .body("Invalid username or password");
+        } catch (BadCredentialsException ex) {
+            log.warn("Login failed - bad credentials for user: {}", loginRequest.getUsername());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid username or password");
+        } catch (Exception ex) {
+            log.error("Authentication error", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred during authentication");
         }
     }
+
+    /**
+     * Registers a new user.
+     *
+     * @param signupRequest The registration details
+     * @return ResponseEntity with the created user or error message
+     */
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody SignupRequest signupRequest) {
-        // Vérifier si l'email existe déjà
-        if (userService.getUserbyEmail(signupRequest.getEmail()).isPresent()) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Erreur: Cet email est déjà utilisé!");
+    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest) {
+        try {
+            // Validate inputs
+            if (signupRequest.getEmail() == null || signupRequest.getEmail().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Email is required");
+            }
+
+            if (signupRequest.getUsername() == null || signupRequest.getUsername().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Username is required");
+            }
+
+            if (signupRequest.getPassword() == null || signupRequest.getPassword().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Password is required");
+            }
+
+            log.info("Processing user registration request for email: {}", signupRequest.getEmail());
+
+            // Check if email is already in use
+            if (userService.getUserbyEmail(signupRequest.getEmail()).isPresent()) {
+                log.warn("Registration failed - email already in use: {}", signupRequest.getEmail());
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body("Email address is already in use");
+            }
+
+            // Create new user
+            User user = new User();
+            user.setEmail(signupRequest.getEmail());
+            user.setName(signupRequest.getUsername());
+            user.setPassword(passwordEncoder.encode(signupRequest.getPassword()));
+            user.setRole("USER"); // Default role
+
+            // Save user
+            User savedUser = userService.addUser(user);
+            log.info("User registered successfully with ID: {}", savedUser.getId());
+
+            // Return success response without exposing password
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", savedUser.getId());
+            response.put("email", savedUser.getEmail());
+            response.put("username", savedUser.getName());
+            response.put("role", savedUser.getRole());
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+        } catch (Exception ex) {
+            log.error("Error during user registration", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred during registration");
         }
-        // Créer un nouvel utilisateur
-        User user = new User();
-        user.setEmail(signupRequest.getEmail());
-        user.setName(signupRequest.getUsername());
-        // Utiliser le PasswordEncoder de Spring Security
-        user.setPassword(passwordEncoder.encode(signupRequest.getPassword()));
-        user.setRole("USER");
-
-        // Sauvegarder l'utilisateur
-        User savedUser = userService.addUser(user);
-
-        // Retourner une réponse avec statut 201 (Created)
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
     }
 
+    /**
+     * Updates user information.
+     *
+     * @param userId The ID of the user to update
+     * @param updateRequest The user update information
+     * @return ResponseEntity with the updated user or error message
+     */
+    @PutMapping("/{userId}")
+    public ResponseEntity<?> updateUser(
+            @PathVariable String userId,
+            @Valid @RequestBody UserUpdateRequest updateRequest) {
+        try {
+            log.info("Processing update request for user ID: {}", userId);
 
+            // Get existing user
+            User existingUser = userService.getUserbyID(userId);
+
+            // Update user details if provided
+            if (updateRequest.getName() != null && !updateRequest.getName().trim().isEmpty()) {
+                existingUser.setName(updateRequest.getName());
+            }
+
+            // Handle password update if provided
+            if (updateRequest.getPassword() != null && !updateRequest.getPassword().trim().isEmpty()) {
+                existingUser.setPassword(passwordEncoder.encode(updateRequest.getPassword()));
+            }
+
+            // Update user
+            User updatedUser = userService.updateUser(existingUser, userId);
+            log.info("User updated successfully: {}", userId);
+
+            // Return success response without exposing password
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", updatedUser.getId());
+            response.put("email", updatedUser.getEmail());
+            response.put("username", updatedUser.getName());
+            response.put("role", updatedUser.getRole());
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException ex) {
+            log.warn("Update failed - user not found: {}", userId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("User not found");
+        } catch (Exception ex) {
+            log.error("Error updating user", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred during user update");
+        }
+    }
+
+    /**
+     * Gets user information by ID.
+     *
+     * @param userId The ID of the user to retrieve
+     * @return ResponseEntity with user information or error message
+     */
+    @GetMapping("/{userId}")
+    public ResponseEntity<?> getUserInfo(@PathVariable String userId) {
+        try {
+            log.info("Retrieving user information for ID: {}", userId);
+
+            User user = userService.getUserbyID(userId);
+
+            // Return user without exposing password
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", user.getId());
+            response.put("email", user.getEmail());
+            response.put("username", user.getName());
+            response.put("role", user.getRole());
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException ex) {
+            log.warn("User retrieval failed - user not found: {}", userId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("User not found");
+        } catch (Exception ex) {
+            log.error("Error retrieving user information", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while retrieving user information");
+        }
+    }
+
+    /**
+     * Deletes a user by ID.
+     *
+     * @param userId The ID of the user to delete
+     * @return ResponseEntity with success message or error message
+     */
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<?> deleteUser(@PathVariable String userId) {
+        try {
+            log.info("Processing delete request for user ID: {}", userId);
+
+            userService.removeUser(userId);
+            log.info("User deleted successfully: {}", userId);
+
+            return ResponseEntity.ok("User deleted successfully");
+
+        } catch (IllegalArgumentException ex) {
+            log.warn("User deletion failed - user not found: {}", userId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("User not found");
+        } catch (Exception ex) {
+            log.error("Error deleting user", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while deleting user");
+        }
+    }
+
+    /**
+     * Admin authentication endpoint.
+     * Allows access with any username as long as the password is "Zone01_Dakar.sn".
+     *
+     * @param adminAuthRequest The admin authentication request
+     * @return ResponseEntity with admin token and details or error message
+     */
     @PostMapping("/admin")
-    public String admin() {
-        return "admin";
+    public ResponseEntity<?> adminAuthentication(@RequestBody AdminAuthRequest adminAuthRequest) {
+        log.info("Admin authentication attempt for: {}", adminAuthRequest.getUsername());
+
+        try {
+            // Validate inputs
+            if (adminAuthRequest.getUsername() == null || adminAuthRequest.getUsername().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Username is required");
+            }
+
+            if (adminAuthRequest.getPassword() == null || adminAuthRequest.getPassword().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Password is required");
+            }
+
+            // Check if the password matches the admin password
+            final String ADMIN_PASSWORD = "Zone01_Dakar.sn";
+            if (!ADMIN_PASSWORD.equals(adminAuthRequest.getPassword())) {
+                log.warn("Admin authentication failed - invalid password for: {}", adminAuthRequest.getUsername());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid admin credentials");
+            }
+
+            // Create or get admin user
+            User adminUser;
+            String username = adminAuthRequest.getUsername();
+
+            // Check if user exists by email (username)
+            Optional<User> existingUser = userService.getUserbyEmail(username);
+
+            if (existingUser.isPresent()) {
+                adminUser = existingUser.get();
+                // Update role to ADMIN if it's not already
+                if (!"ADMIN".equals(adminUser.getRole())) {
+                    adminUser.setRole("ADMIN");
+                    adminUser = userService.updateUser(adminUser, adminUser.getId());
+                    log.info("User role updated to ADMIN: {}", username);
+                }
+            } else {
+                // Create new admin user
+                adminUser = new User();
+                adminUser.setEmail(username);
+                adminUser.setName(username);
+                adminUser.setPassword(passwordEncoder.encode(ADMIN_PASSWORD));
+                adminUser.setRole("ADMIN");
+                adminUser = userService.addUser(adminUser);
+                log.info("New admin user created: {}", username);
+            }
+
+            // Create UserPrincipal manually for admin
+            UserPrincipal userPrincipal = new UserPrincipal(adminUser);
+
+
+            // Generate JWT token for admin
+            String jwtToken = jwtUtils.generateJwtToken(userPrincipal);
+
+            log.info("Admin authenticated successfully: {}", username);
+
+            // Return successful response with token and admin details
+            return ResponseEntity.ok(new JwtResponse(
+                    jwtToken,
+                    adminUser.getId(),
+                    adminUser.getName(),
+                    adminUser.getEmail(),
+                    userPrincipal.getAuthorities().stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .collect(Collectors.toList())
+            ));
+
+        } catch (Exception ex) {
+            log.error("Error during admin authentication", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred during admin authentication");
+        }
     }
 }
+

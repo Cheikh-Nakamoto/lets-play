@@ -11,5 +11,4 @@ public interface IUser {
     User getUserbyID(String userId);
     String roleCheck(String userId);
     Optional<User> getUserbyEmail(String email);
-    boolean checkPassword(String password,String userId);
 }

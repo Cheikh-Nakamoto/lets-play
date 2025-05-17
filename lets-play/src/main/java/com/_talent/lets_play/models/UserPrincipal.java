@@ -13,7 +13,7 @@ public class UserPrincipal implements UserDetails {
     private final User user;
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singleton(new SimpleGrantedAuthority("USER"));
+        return user.getRole().isEmpty() ?Collections.singleton(new SimpleGrantedAuthority("USER")) :Collections.singleton(new SimpleGrantedAuthority("ADMIN")) ;
     }
     public String getId() {
         return user.getId();
