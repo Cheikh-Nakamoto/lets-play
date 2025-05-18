@@ -10,12 +10,12 @@ import java.util.Collections;
 
 @RequiredArgsConstructor
 public class UserPrincipal implements UserDetails {
-
     private final User user;
+
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singleton(new SimpleGrantedAuthority("USER"));
+        return user.getRole() == null ? Collections.singleton(new SimpleGrantedAuthority("USER")): Collections.singleton(new SimpleGrantedAuthority(user.getRole()));
     }
 
     public String getId() {
@@ -51,4 +51,6 @@ public class UserPrincipal implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
+
 }

@@ -69,7 +69,7 @@ public class ProductControllers {
     public ResponseEntity<String> removeProduct(@PathVariable String productId) {
         UserPrincipal user = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String role = user.getAuthorities().stream().findFirst().orElseThrow().getAuthority();
-        log.info("Tentative de suppression du produit: {} par l'utilisateur: {}", productId, user.getAuthorities());
+        log.info("Tentative de suppression du produit: {} par l'utilisateur: {} {}", productId,user.getId(), user.getAuthorities());
         productService.removeProduct(productId, user.getId(),role);
         return ResponseEntity.status(HttpStatus.OK).body("Product delete successfuly !");
     }

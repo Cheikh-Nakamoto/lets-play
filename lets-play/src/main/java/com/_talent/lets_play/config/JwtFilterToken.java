@@ -1,11 +1,14 @@
 package com._talent.lets_play.config;
 
+import com._talent.lets_play.models.User;
 import com._talent.lets_play.models.UserPrincipal;
 import com._talent.lets_play.services.impl.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -18,9 +21,12 @@ import java.util.logging.Logger;
 
 @Component
 @RequiredArgsConstructor
+
 public class JwtFilterToken extends OncePerRequestFilter {
     private final JwtUtils jwtUtils;
     private final UserService userService;
+    @Value("${admin.email}")
+    private  String useradmin;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -40,7 +46,8 @@ public class JwtFilterToken extends OncePerRequestFilter {
                     System.out.println("Username from token: " + username);
 
                     if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        UserPrincipal userDetails = (UserPrincipal) userService.loadUserByUsername(username);
+
+                        UserPrincipal userDetails = useradmin.equals(username) ? new UserPrincipal(new User.Builder().build()) :(UserPrincipal) userService.loadUserByUsername(username) ;
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 userDetails,
                                 null,

@@ -47,18 +47,8 @@ public class UserControllers {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final String path = "/api/auth";
+    private final User.Builder admin;
 
-    @Value("${admin.username:admin}")
-    private String adminUsername;
-
-    @Value("${admin.password:Zone01_Dakar.sn}")
-    private String adminPassword;
-
-    @Value("${admin.email:admin@system.com}")
-    private String adminEmail;
-
-    @Value("${admin.id:999}")
-    private Long adminId;
 
     /**
      * Authenticates a user and returns a JWT token.
@@ -72,11 +62,7 @@ public class UserControllers {
         // Ne pas logger les identifiants complets dans les logs de production
         log.info("Authentication attempt for user: {}", SecurityMaskingUtils.maskUsername(loginRequest.getUsername()));
 
-        ErrorResponse.Builder builder = new ErrorResponse.Builder()
-                .withCode("VALIDATION_ERROR")
-                .withStatus(HttpStatus.BAD_REQUEST.value())
-                .withTimestamp(LocalDateTime.now())
-                .withPath(String.join("/", path, "login"));
+        ErrorResponse.Builder builder = new ErrorResponse.Builder().withCode("VALIDATION_ERROR").withStatus(HttpStatus.BAD_REQUEST.value()).withTimestamp(LocalDateTime.now()).withPath(String.join("/", path, "login"));
 
         try {
             // Vérifications préliminaires des entrées
@@ -86,42 +72,21 @@ public class UserControllers {
 
             Authentication authentication;
             UserPrincipal userPrincipal;
-
             // Vérification pour l'utilisateur admin spécial en utilisant les propriétés de configuration
-            if (adminUsername.equals(loginRequest.getUsername()) && adminPassword.equals(loginRequest.getPassword())) {
+            if ((admin.getAdminEmail().equals(loginRequest.getUsername()) || admin.getAdminUsername().equals(loginRequest.getUsername())) && admin.getAdminPassword().equals(loginRequest.getPassword())) {
                 log.info("Admin special account authentication attempt");
 
-                // Création manuelle d'un UserPrincipal pour l'admin avec les rôles appropriés
-                Set<GrantedAuthority> authorities = new HashSet<>();
-                authorities.add(new SimpleGrantedAuthority("ADMIN"));
 
-                userPrincipal = new UserPrincipal(
-                       new User(
-                               adminId.toString(),
-                               adminUsername,
-                               adminEmail,
-                               passwordEncoder.encode(adminPassword),
-                               "ADMIN",
-                               null
-                       )
-                );
+
+                userPrincipal = new UserPrincipal(admin.build());
 
                 // Création manuelle de l'authentification
-                authentication = new UsernamePasswordAuthenticationToken(
-                        userPrincipal,
-                        null, // Credentials déjà vérifiés
-                        authorities
-                );
+                authentication = new UsernamePasswordAuthenticationToken(userPrincipal, null);
 
                 log.info("Admin special account authenticated successfully");
             } else {
                 // Authentification standard pour tous les autres utilisateurs
-                authentication = authenticationManager.authenticate(
-                        new UsernamePasswordAuthenticationToken(
-                                loginRequest.getUsername(),
-                                loginRequest.getPassword()
-                        )
-                );
+                authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
                 // Get user details
                 userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -136,15 +101,7 @@ public class UserControllers {
             log.info("User authenticated successfully: {}", SecurityMaskingUtils.maskUsername(userPrincipal.getUsername()));
 
             // Return successful response with token and user details
-            return ResponseEntity.ok(new JwtResponse(
-                    jwtToken,
-                    userPrincipal.getId(),
-                    userPrincipal.getUsername(),
-                    userPrincipal.getEmail(),
-                    userPrincipal.getAuthorities().stream()
-                            .map(GrantedAuthority::getAuthority)
-                            .collect(Collectors.toList())
-            ));
+            return ResponseEntity.ok(new JwtResponse(jwtToken, userPrincipal.getId(), userPrincipal.getUsername(), userPrincipal.getEmail(), userPrincipal.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList())));
 
         } catch (UsernameNotFoundException ex) {
             log.warn("Login failed - user not found: {}", SecurityMaskingUtils.maskUsername(loginRequest.getUsername()));
@@ -295,6 +252,7 @@ public class UserControllers {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while retrieving user information");
         }
     }
+
     /**
      * Deletes a user by ID.
      *
@@ -332,14 +290,6 @@ public class UserControllers {
         log.info("Admin authentication attempt for: {}", adminAuthRequest.getUsername());
 
         try {
-            // Validate inputs
-            if (adminAuthRequest.getUsername() == null || adminAuthRequest.getUsername().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("Username is required");
-            }
-
-            if (adminAuthRequest.getPassword() == null || adminAuthRequest.getPassword().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("Password is required");
-            }
 
             // Check if the password matches the admin password
             final String ADMIN_PASSWORD = "Zone01_Dakar.sn";
