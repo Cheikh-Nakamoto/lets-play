@@ -9,7 +9,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.context.request.ServletWebRequest;
@@ -106,7 +105,7 @@ public class GlobalExceptionHandler {
         String path = ((ServletWebRequest) request).getRequest().getRequestURI();
         ErrorResponse errorResponse = new ErrorResponse.Builder()
                 .withCode("INTERNAL_SERVER_ERROR")
-                .withMessage("Une erreur interne s'est produite lors de l'authentification par spring: " + ex.getMessage())
+                .withMessage("Une erreur interne s'est produite : " + ex.getMessage())
                 .withStatus(HttpStatus.BAD_REQUEST.value())
                 .withTimestamp(LocalDateTime.now())
                 .withPath(path)

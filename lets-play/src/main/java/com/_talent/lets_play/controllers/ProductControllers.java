@@ -4,7 +4,6 @@ import com._talent.lets_play.exception.ResourceNotFoundException;
 import com._talent.lets_play.models.Product;
 import com._talent.lets_play.models.UserPrincipal;
 import com._talent.lets_play.services.IProduct;
-import com._talent.lets_play.services.impl.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 @Validated
-//@Tag(name = "Produits", description = "API des opérations sur les produits")
+//@Tag(name = "Products", description = "API des opérations sur les products")
 public class ProductControllers {
     private final IProduct productService;
 
@@ -37,7 +36,7 @@ public class ProductControllers {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
 
     public ResponseEntity<Product> getProductById(@PathVariable String productId) {
-        log.info("Récupération du produit avec l'ID: {}", productId);
+        log.info("Récupération du product avec l'ID: {}", productId);
         return productService.getProductbyID(productId)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit non trouvé avec l'ID: " + productId));

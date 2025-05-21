@@ -5,7 +5,6 @@ import com._talent.lets_play.config.JwtUtils;
 import com._talent.lets_play.exception.ErrorResponse;
 import com._talent.lets_play.models.*;
 import com._talent.lets_play.services.IUser;
-import com._talent.lets_play.services.impl.UserService;
 import com._talent.lets_play.utils.SecurityMaskingUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +22,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com._talent.lets_play.utils.MakeResponse.makeresponse;
@@ -55,7 +52,7 @@ public class AuthControllers {
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-        // Ne pas logger les identifiants complets dans les logs de production
+        // Ne pas logger les identifiers complets dans les logs de production
         log.info("Authentication attempt for user: {}", SecurityMaskingUtils.maskUsername(loginRequest.getUsername()));
 
         String path = "/api/auth";
@@ -88,7 +85,7 @@ public class AuthControllers {
                 userPrincipal = (UserPrincipal) authentication.getPrincipal();
             }
 
-            // Set authentication in security context
+            // Set authentication in a security context
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             // Generate JWT token
@@ -96,7 +93,7 @@ public class AuthControllers {
 
             log.info("User authenticated successfully: {}", SecurityMaskingUtils.maskUsername(userPrincipal.getUsername()));
 
-            // Return successful response with token and user details
+            // Return a successful response with token and user details
             return ResponseEntity.ok(new JwtResponse(jwtToken, userPrincipal.getId(), userPrincipal.getUsername(), userPrincipal.getEmail(), userPrincipal.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList())));
 
         } catch (UsernameNotFoundException ex) {
@@ -134,7 +131,7 @@ public class AuthControllers {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Email address is already in use");
             }
 
-            // Create new user
+            // Create a new user
             User user = new User();
             user.setEmail(signupRequest.getEmail());
             user.setName(signupRequest.getUsername());

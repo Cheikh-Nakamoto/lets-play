@@ -1,5 +1,4 @@
 package com._talent.lets_play.controllers;
-
 import com._talent.lets_play.dto.UserUpdateRequest;
 import com._talent.lets_play.exception.BadRequestException;
 import com._talent.lets_play.exception.ResourceNotFoundException;
@@ -15,9 +14,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
-
 import java.util.*;
-
 import static com._talent.lets_play.utils.MakeResponse.makeresponse;
 
 /**
@@ -31,7 +28,6 @@ import static com._talent.lets_play.utils.MakeResponse.makeresponse;
 public class UserControllers {
     private final IUser userService;
     private final PasswordEncoder passwordEncoder;
-
     /**
      * Retrieves all users from the system.
      * Only accessible to users with an ADMIN role.
@@ -54,7 +50,6 @@ public class UserControllers {
         return (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
-
     /**
      * Updates user information.
      *
@@ -62,9 +57,10 @@ public class UserControllers {
      * @param updateRequest The user update information
      * @return ResponseEntity with the updated user or error message
      */
+
     @PutMapping("/{userId}")
     public ResponseEntity<?> updateUser(@PathVariable String userId, @Valid @RequestBody UserUpdateRequest updateRequest) {
-        boolean Notfailure = false;
+        boolean isUpdated = false;
         log.info("Processing update request for user ID: {}", userId);
         UserPrincipal userPrincipal = getUserPrincipal();
         if (!userPrincipal.getId().equals(userId)) {
@@ -80,14 +76,14 @@ public class UserControllers {
         // Update user details if provided
         if (updateRequest.getUsername() != null && !updateRequest.getUsername().trim().isEmpty()) {
             log.warn("Update failed - name cannot be empty");
-            Notfailure = true;
+            isUpdated = true;
             existingUser.setName(updateRequest.getUsername());
         }
 
         // Update user details if provided
         if (updateRequest.getEmail() != null && !updateRequest.getEmail().trim().isEmpty()) {
             log.warn("Update failed - name cannot be empty");
-            Notfailure = true;
+            isUpdated = true;
             existingUser.setEmail(updateRequest.getEmail());
         }
 
@@ -95,11 +91,11 @@ public class UserControllers {
         // Handle password update if provided
         if (!updateRequest.getPassword().trim().isEmpty()) {
             log.warn("Update failed - password cannot be empty");
-            Notfailure = true;
+            isUpdated = true;
             existingUser.setPassword(passwordEncoder.encode(updateRequest.getPassword()));
         }
 
-        if (!Notfailure) {
+        if (!isUpdated) {
             log.warn("Update failed - no changes provided");
             throw new BadRequestException("No changes provided");
         }
@@ -108,8 +104,6 @@ public class UserControllers {
         log.info("User updated successfully: {}", userId);
 
         // Return success response without exposing password
-
-
         return ResponseEntity.ok(makeresponse(updatedUser));
     }
 
@@ -137,7 +131,7 @@ public class UserControllers {
      * Deletes a user by ID.
      *
      * @param userId The ID of the user to delete
-     * @return ResponseEntity with success message or error message
+     * @return ResponseEntity with a success message or error message
      */
     @DeleteMapping("/{userId}")
     public ResponseEntity<?> deleteUser(@PathVariable String userId) {
