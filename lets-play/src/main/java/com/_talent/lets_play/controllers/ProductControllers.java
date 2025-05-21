@@ -1,9 +1,9 @@
 package com._talent.lets_play.controllers;
 import com._talent.lets_play.exception.BadRequestException;
 import com._talent.lets_play.exception.ResourceNotFoundException;
-import com._talent.lets_play.exception.UnauthorizedAccessException;
 import com._talent.lets_play.models.Product;
 import com._talent.lets_play.models.UserPrincipal;
+import com._talent.lets_play.services.IProduct;
 import com._talent.lets_play.services.impl.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ import java.util.List;
 @Validated
 //@Tag(name = "Produits", description = "API des opérations sur les produits")
 public class ProductControllers {
-    private final ProductService productService;
+    private final IProduct productService;
 
     @GetMapping
 
@@ -59,6 +59,7 @@ public class ProductControllers {
         if (user != null && user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ADMIN"))) {
             product.setUserId("ADMIN");
         }
+        assert user != null;
         product.setUserId(user.getId());
         log.info("Ajout d'un nouveau produit par l'utilisateur: {}", user.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.addProduct(product));

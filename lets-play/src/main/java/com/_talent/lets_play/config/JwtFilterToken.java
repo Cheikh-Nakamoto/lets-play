@@ -4,10 +4,8 @@ import com._talent.lets_play.models.User;
 import com._talent.lets_play.models.UserPrincipal;
 import com._talent.lets_play.services.impl.UserService;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,7 +15,6 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
-import java.util.logging.Logger;
 
 @Component
 @RequiredArgsConstructor
@@ -26,11 +23,11 @@ public class JwtFilterToken extends OncePerRequestFilter {
     private final JwtUtils jwtUtils;
     private final UserService userService;
     @Value("${admin.email}")
-    private  String useradmin;
+    private String useradmin;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws IOException, ServletException {  // Ajouté ServletException ici
+            throws IOException {  // Ajouté ServletException ici
         String authHeader = request.getHeader("Authorization");
         System.out.println("Authorization header: " + authHeader);
 
@@ -47,7 +44,7 @@ public class JwtFilterToken extends OncePerRequestFilter {
 
                     if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                        UserPrincipal userDetails = useradmin.equals(username) ? new UserPrincipal(new User.Builder().build()) :(UserPrincipal) userService.loadUserByUsername(username) ;
+                        UserPrincipal userDetails = useradmin.equals(username) ? new UserPrincipal(new User.Builder().build()) : (UserPrincipal) userService.loadUserByUsername(username);
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 userDetails,
                                 null,
@@ -65,7 +62,7 @@ public class JwtFilterToken extends OncePerRequestFilter {
 
             filterChain.doFilter(request, response);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Cannot set user authentication in security context", e);
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Error: Unauthorized");
         }
     }

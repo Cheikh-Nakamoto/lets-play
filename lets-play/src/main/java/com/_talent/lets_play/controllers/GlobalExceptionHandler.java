@@ -72,7 +72,7 @@ public class GlobalExceptionHandler {
 
         ErrorResponse.Builder builder = new ErrorResponse.Builder()
                 .withCode("VALIDATION_ERROR")
-                .withMessage("Erreur de validation des données")
+                .withMessage("Error de validation des données")
                 .withStatus(HttpStatus.BAD_REQUEST.value())
                 .withTimestamp(LocalDateTime.now())
                 .withPath(path);
@@ -90,10 +90,11 @@ public class GlobalExceptionHandler {
         String path = ((ServletWebRequest) request).getRequest().getRequestURI();
         ErrorResponse errorResponse = new ErrorResponse.Builder()
                 .withCode("ACCESS_DENIED")
-                .withMessage("Vous n'avez pas les permissions nécessaires pour accéder à cette ressource")
+                .withMessage("Vows n'avez pas les permissions nécessaires pour accéder à cette ressource")
                 .withStatus(HttpStatus.FORBIDDEN.value())
                 .withTimestamp(LocalDateTime.now())
                 .withPath(path)
+                .withFieldError("Authorisation:", ex.getMessage())
                 .build();
 
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);

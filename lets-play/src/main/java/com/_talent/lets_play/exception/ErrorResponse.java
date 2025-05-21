@@ -5,6 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
 @Data
 public class ErrorResponse {
     private final String code;
@@ -26,15 +27,7 @@ public class ErrorResponse {
 
     // Classe interne représentant une erreur de validation de champ
 
-    @Data
-    public static class FieldError {
-        private final String field;
-        private final String message;
-
-        public FieldError(String field, String message) {
-            this.field = field;
-            this.message = message;
-        }
+    public record FieldError(String field, String message) {
     }
 
     // Builder pattern
@@ -43,7 +36,7 @@ public class ErrorResponse {
         private String message;
         private int status;
         private LocalDateTime timestamp = LocalDateTime.now();
-        private List<FieldError> fieldErrors = new ArrayList<>();
+        private final List<FieldError> fieldErrors = new ArrayList<>();
         private String path;
 
         public Builder withCode(String code) {

@@ -1,4 +1,5 @@
 package com._talent.lets_play.services.impl;
+import com._talent.lets_play.exception.ResourceNotFoundException;
 import com._talent.lets_play.models.User;
 import com._talent.lets_play.models.UserPrincipal;
 import com._talent.lets_play.repository.UserRepository;
@@ -7,9 +8,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -22,6 +24,17 @@ import java.util.Optional;
 public class UserService implements UserDetailsService, IUser {
 
     private final UserRepository userRepository;
+    /**
+     * Retrieves all users from the system.
+     *
+     * @return List of all users
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> getAllUsers() {
+        log.info("Fetching all users from the database");
+        return userRepository.findAll();
+    }
 
 
     /**
@@ -41,14 +54,14 @@ public class UserService implements UserDetailsService, IUser {
      * Removes a user from the system by ID.
      *
      * @param userId The ID of the user to be removed
-     * @throws IllegalArgumentException if the user doesn't exist
+     * @throws ResourceNotFoundException if the user doesn't exist
      */
     @Override
     @Transactional
     public void removeUser(String userId) {
         if (!userRepository.existsById(userId)) {
             log.warn("Attempted to delete non-existent user with ID: {}", userId);
-            throw new IllegalArgumentException("User with ID " + userId + " not found");
+            throw new ResourceNotFoundException("User with ID " + userId + " not found");
         }
         log.info("Removing user with ID: {}", userId);
         userRepository.deleteById(userId);
@@ -60,14 +73,14 @@ public class UserService implements UserDetailsService, IUser {
      * @param user The updated user data
      * @param userId The ID of the user to update
      * @return The updated user entity
-     * @throws IllegalArgumentException if the user doesn't exist
+     * @throws ResourceNotFoundException if the user doesn't exist
      */
     @Override
     @Transactional
     public User updateUser(User user, String userId) {
         if (!userRepository.existsById(userId)) {
             log.warn("Attempted to update non-existent user with ID: {}", userId);
-            throw new IllegalArgumentException("User with ID " + userId + " not found");
+            throw new ResourceNotFoundException("User with ID " + userId + " not found");
         }
         user.setId(userId);
         log.info("Updating user with ID: {}", userId);
@@ -79,14 +92,14 @@ public class UserService implements UserDetailsService, IUser {
      *
      * @param userId The ID of the user to retrieve
      * @return The user entity
-     * @throws IllegalArgumentException if the user doesn't exist
+     * @throws ResourceNotFoundException if the user doesn't exist
      */
     @Override
     @Transactional(readOnly = true)
     public User getUserbyID(String userId) {
         log.debug("Fetching user by ID: {}", userId);
         return userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User with ID " + userId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
     }
 
     /**
@@ -94,7 +107,7 @@ public class UserService implements UserDetailsService, IUser {
      *
      * @param userId The ID of the user
      * @return The role of the user
-     * @throws IllegalArgumentException if the user doesn't exist
+     * @throws ResourceNotFoundException if the user doesn't exist
      */
     @Override
     @Transactional(readOnly = true)
@@ -126,14 +139,14 @@ public class UserService implements UserDetailsService, IUser {
      *
      * @param username The username (email address) to look up
      * @return A UserDetails object for Spring Security
-     * @throws UsernameNotFoundException if the user doesn't exist
+     * @throws ResourceNotFoundException if the user doesn't exist
      */
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String username) throws ResourceNotFoundException {
         if (username == null || username.trim().isEmpty()) {
             log.warn("Attempted authentication with null or empty username");
-            throw new UsernameNotFoundException("Username cannot be empty");
+            throw new ResourceNotFoundException("Username cannot be empty");
         }
 
         log.debug("Loading user details for authentication: {}", username);
@@ -142,7 +155,7 @@ public class UserService implements UserDetailsService, IUser {
         return user.map(UserPrincipal::new)
                 .orElseThrow(() -> {
                     log.warn("Failed authentication attempt - user not found: {}", username);
-                    return new UsernameNotFoundException("User not found with email: " + username);
+                    return new ResourceNotFoundException("User not found with email: " + username);
                 });
     }
 }

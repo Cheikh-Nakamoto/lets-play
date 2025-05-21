@@ -1,7 +1,7 @@
 package com._talent.lets_play.models;
 
 import lombok.Data;
-import org.hibernate.validator.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 @Data
 public class LoginRequest {
