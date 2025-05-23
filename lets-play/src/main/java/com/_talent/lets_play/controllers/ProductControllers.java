@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
@@ -26,7 +27,6 @@ public class ProductControllers {
     private final IProduct productService;
 
     @GetMapping
-
     public ResponseEntity<List<Product>> getAllProducts() {
         log.info("Récupération de tous les produits");
         return ResponseEntity.ok(productService.getAllProducts());
@@ -34,7 +34,6 @@ public class ProductControllers {
 
     @GetMapping("/{productId}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-
     public ResponseEntity<Product> getProductById(@PathVariable String productId) {
         log.info("Récupération du product avec l'ID: {}", productId);
         return productService.getProductbyID(productId)
@@ -51,7 +50,7 @@ public class ProductControllers {
         return ResponseEntity.ok(productService.getProductsbyUserid(userId));
     }
 
-    @PostMapping("/")
+    @PostMapping()
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Product> addProduct(@Valid @RequestBody Product product){
         UserPrincipal user = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -83,10 +82,10 @@ public class ProductControllers {
         Product existingProduct = productService.getProductbyID(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit non trouvé avec l'ID: " + productId));
 
-        if (!existingProduct.getUserId().equals(user.getId())) {
+        /*if (!existingProduct.getUserId().equals(user.getId())) {
             log.warn("Tentative de modification non autorisée du produit {} par l'utilisateur {}", productId, user.getId());
             throw new BadRequestException("Vous n'êtes pas autorisé à modifier ce produit");
-        }
+        }*/
 
         log.info("Mise à jour du produit: {} par l'utilisateur: {}", productId, user.getId());
         return ResponseEntity.ok(productService.updateProduct(product, productId));

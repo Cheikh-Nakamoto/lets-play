@@ -3,16 +3,19 @@ package com._talent.lets_play.controllers;
 
 import com._talent.lets_play.config.JwtUtils;
 import com._talent.lets_play.exception.ErrorResponse;
+import com._talent.lets_play.exception.UnauthorizedAccessException;
 import com._talent.lets_play.models.*;
 import com._talent.lets_play.services.IUser;
 import com._talent.lets_play.utils.SecurityMaskingUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -56,8 +59,6 @@ public class AuthControllers {
         log.info("Authentication attempt for user: {}", SecurityMaskingUtils.maskUsername(loginRequest.getUsername()));
 
         String path = "/api/auth";
-        ErrorResponse.Builder builder = new ErrorResponse.Builder().withCode("VALIDATION_ERROR").withStatus(HttpStatus.BAD_REQUEST.value()).withTimestamp(LocalDateTime.now()).withPath(String.join("/", path, "login"));
-
         try {
             // Vérifications préliminaires des entrées
             if (loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
@@ -98,18 +99,16 @@ public class AuthControllers {
 
         } catch (UsernameNotFoundException ex) {
             log.warn("Login failed - user not found: {}", SecurityMaskingUtils.maskUsername(loginRequest.getUsername()));
-            builder.withMessage("Nom d'utilisateur ou mot de passe invalide");
+
             // Ne pas révéler si c'est le nom d'utilisateur ou le mot de passe qui pose problème
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(builder.build());
+           throw  new UnauthorizedAccessException("Nom d'utilisateur inexistant");
         } catch (BadCredentialsException ex) {
             log.warn("Login failed - bad credentials for user: {}", SecurityMaskingUtils.maskUsername(loginRequest.getUsername()));
-            builder.withMessage("Nom d'utilisateur ou mot de passe invalide");
-            // Ne pas révéler si c'est le nom d'utilisateur ou le mot de passe qui pose problème
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(builder.build());
-        } catch (Exception ex) {
+            throw  new UnauthorizedAccessException("Nom d'utilisateur ou mot de passe invalide");
+        } catch (InternalAuthenticationServiceException ex) {
             log.error("Authentication error", ex);
-            builder.withMessage("Une erreur est survenue lors de l'authentification");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(builder.build());
+
+           throw new InternalAuthenticationServiceException("Une erreur est survenue lors de l'authentification");
         }
     }
 
@@ -128,7 +127,7 @@ public class AuthControllers {
             // Check if email is already in use
             if (userService.getUserbyEmail(signupRequest.getEmail()).isPresent()) {
                 log.warn("Registration failed - email already in use: {}", signupRequest.getEmail());
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Email address is already in use");
+                throw new com._talent.lets_play.exception.IncorrectResultSizeDataAccessException("Error during user registration, l'email existe deja");
             }
 
             // Create a new user
@@ -147,9 +146,10 @@ public class AuthControllers {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(makeresponse(savedUser));
 
-        } catch (Exception ex) {
+        } catch (IncorrectResultSizeDataAccessException ex) {
             log.error("Error during user registration", ex);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("An error occurred during registration");
+           // return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("An error occurred during registration");
+            throw new com._talent.lets_play.exception.IncorrectResultSizeDataAccessException("Error during user registration");
         }
     }
 

@@ -17,10 +17,6 @@ public class UserUpdateRequest {
     @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
     private String username;
     @Field
-    @Email(message = "Email must be a valid email address")
-    @Size(max = 50, message = "Email must be less than 50 characters")
-    private String email;
-    @Field
     @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
     private String password;
 }

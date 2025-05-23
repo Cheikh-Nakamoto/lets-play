@@ -12,13 +12,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductDTO {
-    private String id;
     @NotBlank
     private String name;
     @NotBlank
     private String description;
     @Positive
     private Double price;
-    @NotBlank
-    private String userId;
 }

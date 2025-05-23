@@ -8,6 +8,7 @@ import com._talent.lets_play.services.IUser;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -59,6 +60,7 @@ public class UserControllers {
      */
 
     @PutMapping("/{userId}")
+    @PostAuthorize("#userId == authentication.principal.id")  // User can only access their own data
     public ResponseEntity<?> updateUser(@PathVariable String userId, @Valid @RequestBody UserUpdateRequest updateRequest) {
         boolean isUpdated = false;
         log.info("Processing update request for user ID: {}", userId);
@@ -80,16 +82,9 @@ public class UserControllers {
             existingUser.setName(updateRequest.getUsername());
         }
 
-        // Update user details if provided
-        if (updateRequest.getEmail() != null && !updateRequest.getEmail().trim().isEmpty()) {
-            log.warn("Update failed - name cannot be empty");
-            isUpdated = true;
-            existingUser.setEmail(updateRequest.getEmail());
-        }
-
 
         // Handle password update if provided
-        if (!updateRequest.getPassword().trim().isEmpty()) {
+        if (updateRequest.getPassword() != null && !updateRequest.getPassword().trim().isEmpty()) {
             log.warn("Update failed - password cannot be empty");
             isUpdated = true;
             existingUser.setPassword(passwordEncoder.encode(updateRequest.getPassword()));
@@ -114,6 +109,7 @@ public class UserControllers {
      * @return ResponseEntity with user information or error message
      */
     @GetMapping("/{userId}")
+    @PostAuthorize("#userId == authentication.principal.id")  // User can only access their own data
     public ResponseEntity<?> getUserInfo(@PathVariable String userId) {
         log.info("Retrieving user information for ID: {}", userId);
 
@@ -134,12 +130,13 @@ public class UserControllers {
      * @return ResponseEntity with a success message or error message
      */
     @DeleteMapping("/{userId}")
+    @PostAuthorize("#userId == authentication.principal.id")  // User can only access their own data
     public ResponseEntity<?> deleteUser(@PathVariable String userId) {
         UserPrincipal userPrincipal = getUserPrincipal();
-        if (!userPrincipal.getId().equals(userId) && !userPrincipal.getRole().equals("ADMIN")) {
+       /* if (!userPrincipal.getId().equals(userId) && !userPrincipal.getRole().equals("ADMIN")) {
             log.warn("Delete failed - user cannot delete their own details");
             throw new UnauthorizedAccessException("User cannot delete their own details");
-        }
+        }*/
         log.info("Processing delete request for user ID: {}", userId);
 
         userService.removeUser(userId);
