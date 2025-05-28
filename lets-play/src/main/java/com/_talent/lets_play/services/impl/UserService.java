@@ -133,6 +133,11 @@ public class UserService implements UserDetailsService, IUser {
         return userRepository.getUsersByEmail(email);
     }
 
+    @Override
+    public boolean existsByUsername(String username) {
+        return userRepository.getUsersByName(username).isPresent();
+    }
+
     /**
      * Loads a user by username for Spring Security authentication.
      * This implementation treats the email as the username.

@@ -57,4 +57,7 @@ public class UserPrincipal implements UserDetails {
     }
 
 
+    public boolean isAdmin() {
+        return "ROLE_ADMIN".equals(user.getRole());
+    }
 }

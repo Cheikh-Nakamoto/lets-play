@@ -51,55 +51,87 @@ public class UserControllers {
         return (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
-    /**
-     * Updates user information.
-     *
-     * @param userId        The ID of the user to update
-     * @param updateRequest The user update information
-     * @return ResponseEntity with the updated user or error message
-     */
-
     @PutMapping("/{userId}")
-    @PostAuthorize("#userId == authentication.principal.id")  // User can only access their own data
-    public ResponseEntity<?> updateUser(@PathVariable String userId, @Valid @RequestBody UserUpdateRequest updateRequest) {
-        boolean isUpdated = false;
+    @PreAuthorize("#userId == authentication.principal.id or hasRole('ADMIN')")
+    public ResponseEntity<User> updateUser(
+            @PathVariable String userId,
+            @Valid @RequestBody UserUpdateRequest updateRequest) {
+
         log.info("Processing update request for user ID: {}", userId);
-        UserPrincipal userPrincipal = getUserPrincipal();
-        if (!userPrincipal.getId().equals(userId)) {
-            log.warn("Update failed - user cannot update their own details");
-            throw new UnauthorizedAccessException("User cannot update their own details");
-        }
-        // Get existing user
+
+        // Récupération de l'utilisateur existant
         User existingUser = userService.getUserbyID(userId);
         if (existingUser == null) {
             log.warn("Update failed - user not found: {}", userId);
-            throw new ResourceNotFoundException("User not found");
-        }
-        // Update user details if provided
-        if (updateRequest.getUsername() != null && !updateRequest.getUsername().trim().isEmpty()) {
-            log.warn("Update failed - name cannot be empty");
-            isUpdated = true;
-            existingUser.setName(updateRequest.getUsername());
+            throw new ResourceNotFoundException("User not found with ID: " + userId);
         }
 
+        // Validation des données d'entrée
+        validateUpdateRequest(updateRequest);
 
-        // Handle password update if provided
-        if (updateRequest.getPassword() != null && !updateRequest.getPassword().trim().isEmpty()) {
-            log.warn("Update failed - password cannot be empty");
-            isUpdated = true;
-            existingUser.setPassword(passwordEncoder.encode(updateRequest.getPassword()));
+        // Application des modifications
+        boolean hasChanges = applyUserUpdates(existingUser, updateRequest);
+
+        if (!hasChanges) {
+            log.warn("Update failed - no valid changes provided for user: {}", userId);
+            throw new BadRequestException("No valid changes provided");
         }
 
-        if (!isUpdated) {
-            log.warn("Update failed - no changes provided");
-            throw new BadRequestException("No changes provided");
-        }
-        // Update user
+        // Sauvegarde des modifications
         User updatedUser = userService.updateUser(existingUser, userId);
         log.info("User updated successfully: {}", userId);
 
-        // Return success response without exposing password
-        return ResponseEntity.ok(makeresponse(updatedUser));
+        return ResponseEntity.ok((User) makeresponse(updatedUser));
+    }
+
+    /**
+     * Valide la requête de mise à jour (validations métier supplémentaires)
+     * Les validations @Size sont déjà gérées par @Valid dans le contrôleur
+     * @param updateRequest la requête de mise à jour
+     */
+    private void validateUpdateRequest(UserUpdateRequest updateRequest) {
+        // Validation des chaînes vides (même si la longueur est valide)
+        if (updateRequest.getUsername() != null && updateRequest.getUsername().trim().isEmpty()) {
+            throw new BadRequestException("Username cannot be empty or contain only whitespace");
+        }
+
+        if (updateRequest.getPassword() != null && updateRequest.getPassword().trim().isEmpty()) {
+            throw new BadRequestException("Password cannot be empty or contain only whitespace");
+        }
+    }
+
+    /**
+     * Applique les modifications à l'utilisateur existant
+     * @param existingUser l'utilisateur existant
+     * @param updateRequest la requête de mise à jour
+     * @return true si des modifications ont été appliquées, false sinon
+     */
+    private boolean applyUserUpdates(User existingUser, UserUpdateRequest updateRequest) {
+        boolean hasChanges = false;
+
+        // Mise à jour du nom d'utilisateur
+        if (updateRequest.getUsername() != null &&
+                !updateRequest.getUsername().equals(existingUser.getName())) {
+
+            // Vérifier l'unicité du nom d'utilisateur si nécessaire
+            if (userService.existsByUsername(updateRequest.getUsername())) {
+                throw new BadRequestException("Username already exists");
+            }
+
+            log.info("Updating username for user: {} from '{}' to '{}'",
+                    existingUser.getId(), existingUser.getName(), updateRequest.getUsername());
+            existingUser.setName(updateRequest.getUsername());
+            hasChanges = true;
+        }
+
+        // Mise à jour du mot de passe
+        if (updateRequest.getPassword() != null) {
+            log.info("Updating password for user: {}", existingUser.getId());
+            existingUser.setPassword(passwordEncoder.encode(updateRequest.getPassword()));
+            hasChanges = true;
+        }
+
+        return hasChanges;
     }
 
     /**

@@ -1,4 +1,5 @@
 package com._talent.lets_play.controllers;
+import com._talent.lets_play.dto.ProductDTO;
 import com._talent.lets_play.exception.BadRequestException;
 import com._talent.lets_play.exception.ResourceNotFoundException;
 import com._talent.lets_play.models.Product;
@@ -72,22 +73,15 @@ public class ProductControllers {
         productService.removeProduct(productId, user.getId(),role);
         return ResponseEntity.status(HttpStatus.OK).body("Product delete successfuly !");
     }
-
     @PutMapping("/{productId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<Product> updateProduct(@Valid @RequestBody Product product, @PathVariable String productId) {
-        UserPrincipal user = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        // Vérifier si l'utilisateur est autorisé à modifier ce produit
-        Product existingProduct = productService.getProductbyID(productId)
+    @PreAuthorize("@productService.isOwnerOrAdmin(#productId, authentication.principal.id)")
+    public ResponseEntity<Product> updateProduct(@Valid @RequestBody ProductDTO product, @PathVariable String productId) {
+        productService.getProductbyID(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit non trouvé avec l'ID: " + productId));
 
-        /*if (!existingProduct.getUserId().equals(user.getId())) {
-            log.warn("Tentative de modification non autorisée du produit {} par l'utilisateur {}", productId, user.getId());
-            throw new BadRequestException("Vous n'êtes pas autorisé à modifier ce produit");
-        }*/
-
+        UserPrincipal user = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         log.info("Mise à jour du produit: {} par l'utilisateur: {}", productId, user.getId());
+
         return ResponseEntity.ok(productService.updateProduct(product, productId));
     }
 }
