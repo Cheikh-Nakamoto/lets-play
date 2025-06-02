@@ -55,7 +55,10 @@ public class WebSecurityConfiguration {
                 .authorizeHttpRequests(authorize -> {
                     authorize.requestMatchers(
                             "/api/auth/**",
-                            "/api/products"
+                            "/api/products",
+                            "/v3/api-docs/**",
+                            "/swagger-ui/**",
+                            "/swagger-ui.html"
                     ).permitAll();
                     authorize.anyRequest().authenticated();
                 })   .addFilterBefore(jwtFilterToken, UsernamePasswordAuthenticationFilter.class)

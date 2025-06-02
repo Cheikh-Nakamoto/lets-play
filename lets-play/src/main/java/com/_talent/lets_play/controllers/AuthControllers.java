@@ -7,6 +7,13 @@ import com._talent.lets_play.exception.UnauthorizedAccessException;
 import com._talent.lets_play.models.*;
 import com._talent.lets_play.services.IUser;
 import com._talent.lets_play.utils.SecurityMaskingUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +31,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 import static com._talent.lets_play.utils.MakeResponse.makeresponse;
@@ -37,6 +43,7 @@ import static com._talent.lets_play.utils.MakeResponse.makeresponse;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Authentication", description = "APIs for user authentication and registration")
 public class AuthControllers {
 
     private final IUser userService;
@@ -54,11 +61,20 @@ public class AuthControllers {
      */
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+    @Operation(summary = "Authenticate user", description = "Authenticates a user and returns a JWT token upon successful login.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User authenticated successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = JwtResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid credentials",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<?> authenticateUser(@Parameter(description = "User login credentials", required = true) @Valid @RequestBody LoginRequest loginRequest) {
         // Ne pas logger les identifiers complets dans les logs de production
         log.info("Authentication attempt for user: {}", SecurityMaskingUtils.maskUsername(loginRequest.getUsername()));
 
-        String path = "/api/auth";
+
         try {
             // Vérifications préliminaires des entrées
             if (loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
@@ -119,7 +135,16 @@ public class AuthControllers {
      * @return ResponseEntity with the created user or error message
      */
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest) {
+    @Operation(summary = "Register a new user", description = "Registers a new user account in the system.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "User registered successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "400", description = "Bad request - Email already in use or invalid data",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<?> registerUser(@Parameter(description = "User registration details", required = true) @Valid @RequestBody SignupRequest signupRequest) {
         try {
 
             log.info("Processing user registration request for email: {}", signupRequest.getEmail());

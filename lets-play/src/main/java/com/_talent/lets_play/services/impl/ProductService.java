@@ -111,7 +111,7 @@ public class ProductService implements IProduct {
             existingProduct.setDescription(dto.getDescription());
         }
         if (dto.getPrice() != null) {
-            existingProduct.setPrice(BigDecimal.valueOf(dto.getPrice()));
+            existingProduct.setPrice(dto.getPrice());
         }
     }
     @Override
